@@ -1,0 +1,56 @@
+{
+    "name": "devbossma/cod-funnel-booster",
+    "description": "COD Funnel Booster is designed WordPress Plugin for business owners who rely on Cash on Delivery payment methode",
+    "license": "GPL-2.0+",
+    "version": "1.0.0",
+    "authors": [
+        {
+            "name": "Yassine Saber",
+            "email": "ysaber201@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "automattic/jetpack-autoloader": "^2",
+        "league/container": "^4.2"
+    },
+    "require-dev": {
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "squizlabs/php_codesniffer": "^3.11.0",
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpunit/phpunit": "^10.5",
+        "mockery/mockery": "^1.5"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "automattic/jetpack-autoloader": true
+        }
+    },
+	"autoload": {
+		"psr-4": {
+			"DevBossMa\\CODFunnelBooster\\Core\\": "core/",
+            "DevBossMa\\CODFunnelBooster\\": "includes/"
+		}
+	},
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "@php ./vendor/bin/phpunit",
+        "test:coverage": "@php ./vendor/bin/phpunit --coverage-html coverage",
+        "test:unit": "@php ./vendor/bin/phpunit --testsuite=Unit",
+        "phpcs": "@php ./vendor/bin/phpcs",
+        "phpcbf": "@php ./vendor/bin/phpcbf"
+    },
+    "scripts-descriptions": {
+        "test": "Run all PHPUnit tests",
+        "test:coverage": "Run all PHPUnit tests with coverage report",
+        "test:unit": "Run only Unit tests",
+        "phpcs": "Analyze code against coding standards",
+        "phpcbf": "Fix coding standards violations"
+    }
+}

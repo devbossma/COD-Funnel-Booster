@@ -1,0 +1,57 @@
+Activation:
+
+		// $upload_dir     = wp_upload_dir();
+		// $cfb_upload_dir = $upload_dir['basedir'] . '/cfb-uploads';
+
+		// // Create COD FUNNEL BOOSTER upload's directory if it doesn't exist.
+		// if ( ! file_exists( $cfb_upload_dir ) ) {
+		// wp_mkdir_p( $cfb_upload_dir );
+		// }
+
+		// $options = get_option( 'cfb_settings' );
+
+		// $default_options = array(
+		// 'version'    => CFB_VERSION,
+		// 'enabled'    => true,
+		// 'upload_dir' => $cfb_upload_dir,
+		// );
+
+		// if ( ! $options ) {
+		// add_option( 'cfb_settings', $default_options );
+		// return;
+		// }
+
+		// // Update the enabled status but keep upload_dir.
+		// $options['enabled'] = true;
+
+		// // Save the updated options.
+		// update_option( 'cfb_settings', $options );
+
+Deactivation:
+
+
+
+
+		$container            = cfb_container();
+		$geo_service_provider = $container::resolve( GeoServiceProvider::class );
+
+			$base_country_code = $geo_service_provider->get_base_country();
+			$countries         = $geo_service_provider->get_countries();
+			$allowed_countries = $geo_service_provider->get_allowed_countries();
+			$base_state_code   = $geo_service_provider->get_base_state();
+			$country_name      = $geo_service_provider->get_country_name( $base_country_code );
+			$base_state_name   = $geo_service_provider->get_state_name( $base_country_code, 'mabem' );
+			$all_states        = $geo_service_provider->get_all_states();
+
+		try {
+
+			echo '<pre>';
+			var_dump( $base_state_name );
+			echo '</pre>';
+		} catch ( GeoServiceException $e ) {
+			$mess = $e->getMessage();
+			echo '<pre>';
+			var_dump( $mess );
+			echo '</pre>';
+		}
+    

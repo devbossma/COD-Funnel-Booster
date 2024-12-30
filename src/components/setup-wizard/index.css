@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.cod-funnel-wizard {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #2a0131;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.cod-funnel-loading {
+    text-align: center;
+    padding: 40px;
+}
+/* class="rounded-xl border bg-card text-card-foreground shadow max-w-2xl mx-auto" */
+
+html, body, #wpwrap{
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    --wp-admin--admin-bar--height: 0px;
+}
+
+
+#wpadminbar, #adminmenumain, #wpfooter{
+    display: none;
+}
+#wpwrap{
+    margin-left: 0px;
+    padding-left: 0px
+}
+#wpcontent{
+    margin-left: 0px;
+    padding-left: 0px;
+    width: 100%;
+}
+
+#wpbody-content{
+    padding-bottom: 0px;
+}
+
+.cod-funnel-wizard {
+    max-width: 900px;
+    margin: 0px;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    min-height: 600px;
+}
+
+.cod-funnel-wizard h1 {
+    color: #2c3338;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.cod-funnel-wizard .progress-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 40px;
+}
+
+.cod-funnel-wizard .progress-step {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 15px;
+    color: #888;
+    transition: all 0.3s ease;
+}
+
+.cod-funnel-wizard .progress-step.active {
+    background-color: #007cba;
+    color: white;
+}
+@media only screen and (max-width: 960px) {
+    .auto-fold #wpcontent, .auto-fold #wpfooter {
+      margin-left: 0px;
+    }
+}
+@media screen and (max-width: 782px) {
+    .auto-fold #wpcontent {
+      position: relative;
+      margin-left: 0;
+      padding-left: 0px;
+    }
+  }
+

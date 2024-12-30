@@ -1,0 +1,157 @@
+######################################################################
+##                  Orders functions								##
+######################################################################
+
+/**
+ * Get all order statuses.
+ *
+ * @since 2.2
+ * @used-by WC_Order::set_status
+ * @return array
+ */
+function wc_get_order_statuses() {
+	$order_statuses = array(
+		'wc-pending'    => _x( 'Pending payment', 'Order status', 'woocommerce' ),
+		'wc-processing' => _x( 'Processing', 'Order status', 'woocommerce' ),
+		'wc-on-hold'    => _x( 'On hold', 'Order status', 'woocommerce' ),
+		'wc-completed'  => _x( 'Completed', 'Order status', 'woocommerce' ),
+		'wc-cancelled'  => _x( 'Cancelled', 'Order status', 'woocommerce' ),
+		'wc-refunded'   => _x( 'Refunded', 'Order status', 'woocommerce' ),
+		'wc-failed'     => _x( 'Failed', 'Order status', 'woocommerce' ),
+	);
+	return apply_filters( 'wc_order_statuses', $order_statuses );
+}
+
+################################### Main function for returning orders ###################################
+
+/**
+ * Main function for returning orders, uses the WC_Order_Factory class.
+ *
+ * @since  2.2
+ *
+ * @param mixed $the_order       Post object or post ID of the order.
+ *
+ * @return bool|WC_Order|WC_Order_Refund
+ */
+function wc_get_order( $the_order = false ) ;
+
+######################################################################
+
+/**
+ * Standard way of retrieving orders based on certain parameters.
+ *
+ * This function should be used for order retrieval so that when we move to
+ * custom tables, functions still work.
+ *
+ * Args and usage: https://github.com/woocommerce/woocommerce/wiki/wc_get_orders-and-WC_Order_Query
+ *
+ * @since  2.6.0
+ * @param  array $args Array of args (above).
+ * @return WC_Order[]|stdClass Number of pages and an array of order objects if
+ *                             paginate is true, or just an array of values.
+ */
+function wc_get_orders( $args ) ;
+
+######################################################################
+
+/**
+ * See if a string is an order status.
+ *
+ * @param  string $maybe_status Status, including any wc- prefix.
+ * @return bool
+ */
+function wc_is_order_status( $maybe_status );
+
+######################################################################
+
+/**
+ * Return the count of processing orders.
+ *
+ * @return int
+ */
+function wc_processing_order_count();
+
+######################################################################
+##                  Order Items functions							##
+######################################################################
+/**
+ * Add a item to an order (for example a line item).
+ *
+ * @param int   $order_id   Order ID.
+ * @param array $item_array Items list.
+ *
+ * @throws Exception        When `WC_Data_Store::load` validation fails.
+ * @return int|bool         Item ID or false
+ */
+function wc_add_order_item( $order_id, $item_array );
+
+######################################################################
+
+I think this fnction is usfull for adding updsales and down sales to the order. 
+/**
+ * Update an item for an order.
+ *
+ * @since 2.2
+ * @param int   $item_id Item ID.
+ * @param array $args    Either `order_item_type` or `order_item_name`.
+ *
+ * @throws Exception     When `WC_Data_Store::load` validation fails.
+ * @return bool          True if successfully updated, false otherwise.
+ */
+function wc_update_order_item( $item_id, $args );
+
+
+######################################################################
+##                  Poducts functions								##
+######################################################################
+
+/**
+ * Standard way of retrieving products based on certain parameters.
+ *
+ * This function should be used for product retrieval so that we have a data agnostic
+ * way to get a list of products.
+ *
+ * Args and usage: https://github.com/woocommerce/woocommerce/wiki/wc_get_products-and-WC_Product_Query
+ *
+ * @since  3.0.0
+ * @param  array $args Array of args (above).
+ * @return array|stdClass Number of pages and an array of product objects if
+ *                             paginate is true, or just an array of values.
+ */
+function wc_get_products( $args );
+
+######################################################################
+
+/**
+ * Main function for returning products, uses the WC_Product_Factory class.
+ *
+ * This function should only be called after 'init' action is finished, as there might be taxonomies that are getting
+ * registered during the init action.
+ *
+ * @since 2.2.0
+ *
+ * @param mixed $the_product Post object or post ID of the product.
+ * @param array $deprecated Previously used to pass arguments to the factory, e.g. to force a type.
+ * @return WC_Product|null|false
+ */
+function wc_get_product( $the_product = false, $deprecated = array() );
+
+######################################################################
+
+/**
+ * Function that returns an array containing the IDs of the products that are on sale.
+ *
+ * @since 2.0
+ * @return array
+ */
+function wc_get_product_ids_on_sale();
+
+######################################################################
+
+
+######################################################################
+######################################################################
+######################################################################
+######################################################################
+######################################################################
+######################################################################

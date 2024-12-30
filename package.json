@@ -1,0 +1,84 @@
+{
+    "name": "cod-funnel-booster",
+    "version": "1.0.0",
+    "scripts": {
+        "build": "wp-scripts build",
+        "start": "wp-scripts start",
+        "check-engines": "wp-scripts check-engines",
+        "check-licenses": "wp-scripts check-licenses",
+        "lint:css": "wp-scripts lint-style",
+        "lint:js": "wp-scripts lint-js",
+        "lint:pkg-json": "wp-scripts lint-pkg-json",
+        "test:e2e": "wp-scripts test-e2e",
+        "test:unit": "wp-scripts test-unit-js"
+    },
+    "dependencies": {
+        "@csstools/postcss-is-pseudo-class": "^5.0.1",
+        "@fortawesome/free-solid-svg-icons": "^6.7.2",
+        "@fortawesome/react-fontawesome": "^0.2.2",
+        "@radix-ui/react-alert-dialog": "^1.0.5",
+        "@radix-ui/react-dialog": "^1.1.4",
+        "@radix-ui/react-label": "^2.1.1",
+        "@radix-ui/react-popover": "^1.1.4",
+        "@radix-ui/react-select": "^2.1.4",
+        "@radix-ui/react-separator": "^1.0.3",
+        "@radix-ui/react-slot": "^1.1.1",
+        "@radix-ui/react-toast": "^1.2.4",
+        "@testing-library/jest-dom": "^6.6.3",
+        "@wordpress/api-fetch": "^7.14.0",
+        "@wordpress/components": "^29.0.0",
+        "@wordpress/element": "^6.14.0 ",
+        "@wordpress/hooks": "^4.14.0",
+        "@wordpress/i18n": "^5.14.0",
+        "@wordpress/is-shallow-equal": "^5.14.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "cmdk": "^1.0.0",
+        "core-js": "^3.39.0",
+        "css-minimizer-webpack-plugin": "^7.0.0",
+        "lucide-react": "^0.460.0",
+        "postcss-preset-env": "^10.1.1",
+        "postcss-pseudo-classes": "^0.4.0",
+        "react-router-dom": "^6.27.0",
+        "react-select": "^5.9.0",
+        "tailwind-merge": "^2.6.0",
+        "tailwindcss-animate": "^1.0.7",
+        "vaul": "^0.9.0"
+    },
+    "devDependencies": {
+        "@shadcn/ui": "^0.0.4",
+        "@wordpress/eslint-plugin": "^22.0.0",
+        "@wordpress/prettier-config": "^4.14.0",
+        "@wordpress/scripts": "^30.7.0",
+        "@wordpress/stylelint-config": "^23.6.0",
+        "autoprefixer": "^10.4.20",
+        "css-loader": "^6.10.0",
+        "mini-css-extract-plugin": "^2.9.2",
+        "postcss": "^8.4.49",
+        "postcss-cli": "^11.0.0",
+        "postcss-loader": "^8.1.0",
+        "shadcn-ui": "^0.8.0",
+        "tailwindcss": "^3.4.15",
+        "terser-webpack-plugin": "^5.3.10"
+    },
+    "overrides": {
+        "cookie": "^0.7.0",
+        "ws": "^8.17.0",
+        "puppeteer-core": "^22.11.2",
+        "@sentry/node": "^7.74.3",
+        "lighthouse": "^11.6.0"
+    },
+    "types": "./src/types/window.js",
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    }
+}
