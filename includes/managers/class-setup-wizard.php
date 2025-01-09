@@ -69,31 +69,6 @@ class Setup_Wizard {
 	}
 
 	/**
-	 * Register REST API routes
-	 */
-	public function register_rest_routes(): void {
-		register_rest_route(
-			'cod-funnel-booster/v1',
-			'/plugin-status',
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_plugin_status' ),
-				'permission_callback' => array( $this, 'check_admin_permissions' ),
-			)
-		);
-	}
-
-	/**
-	 * Get plugin status
-	 *
-	 * @return WP_REST_Response
-	 */
-	public function get_plugin_status(): WP_REST_Response {
-		$plugin_status = $this->dependency_manager->get_plugin_status();
-		return rest_ensure_response( $plugin_status );
-	}
-
-	/**
 	 * Add admin menu page for the setup wizard
 	 */
 	public function add_admin_menu(): void {

@@ -323,6 +323,7 @@ class WooCommerceGeoService implements GeoServiceInterface {
 			// Get current allowed countries.
 			$current_allowed_type       = get_option( 'woocommerce_allowed_countries', 'all' );
 			$current_specific_countries = get_option( 'woocommerce_specific_allowed_countries', array() );
+			$current_excluded_countries = get_option( 'woocommerce_excluded_countries', array() );
 
 			// Log current state.
 			if ( $this->logger ) {
@@ -349,6 +350,14 @@ class WooCommerceGeoService implements GeoServiceInterface {
 
 				if ( $current_countries_serialized !== $new_countries_serialized ) {
 					$success = update_option( 'woocommerce_specific_allowed_countries', $country_codes );
+				}
+			}
+			if ( $success && 'all_except' === $allowed_type ) {
+				$current_countries_serialized = wp_json_encode( $current_excluded_countries );
+				$new_countries_serialized     = wp_json_encode( $country_codes );
+
+				if ( $current_countries_serialized !== $new_countries_serialized ) {
+					$success = update_option( 'woocommerce_excluded_countries', $country_codes );
 				}
 			}
 

@@ -1,62 +1,76 @@
 <?php
 /**
- * The "Dependency_Checker_Service" Class
+ * The Dependency Checker Service.
+ *
+ * This class handles checking dependencies for the COD Funnel Booster plugin.
  *
  * @package CODFunnelBooster
+ * @since   1.0.0
  */
 
 namespace DevBossMa\CODFunnelBooster\Services\Dependency;
 
-use DevBossMa\CODFunnelBooster\Interface\Plugin_Dependency_Api_Interface;
+use DevBossMa\CODFunnelBooster\Interfaces\Plugin_Dependency_Api_Interface;
 
 /**
- * Dependency_Checker_Service Definition class.
+ * Class Dependency_Checker_Service
+ *
+ * Handles checking plugin dependencies and their compatibility.
  */
 class Dependency_Checker_Service {
 
 	/**
-	 * The reqired plugins Status.
+	 * The required plugins status array.
 	 *
-	 * @var array $plugins_status
+	 * @since 1.0.0
+	 * @var   array
 	 */
 	private $plugins_status = array();
 
-
+	/**
+	 * Array of required plugin slugs.
+	 *
+	 * @since 1.0.0
+	 * @var   array
+	 */
 	private const REQUIRED_PLUGINS = array( 'woocommerce', 'elementor' );
 
 	/**
-	 * The "Plugin_Dependency_Api_Service" Interface.
+	 * Plugin Dependency API Interface instance.
 	 *
-	 * @var Plugin_Dependency_Api_Interface
+	 * @since 1.0.0
+	 * @var   Plugin_Dependency_Api_Interface
 	 */
 	private Plugin_Dependency_Api_Interface $required_plugin_api;
 
 	/**
-	 * The "Dependency_Checker_Service" constructor.
+	 * Initialize the dependency checker service.
 	 *
-	 * @param Plugin_Dependency_Api_Interface $required_plugin_api The required plugin interface.
+	 * @since 1.0.0
+	 * @param Plugin_Dependency_Api_Interface $required_plugin_api The required plugin API interface.
 	 */
 	public function __construct( Plugin_Dependency_Api_Interface $required_plugin_api ) {
 		$this->required_plugin_api = $required_plugin_api;
 	}
 
 	/**
-	 * Get The requier plugins status function.
+	 * Get the status of required plugins.
 	 *
-	 * @return array
+	 * @since  1.0.0
+	 * @return array Array containing status information for required plugins.
 	 */
-	public function get_plugins_status(): array {
-
+	public function get_plugins_status() {
 		foreach ( self::REQUIRED_PLUGINS as $slug ) {
+			$plugin_file = $this->required_plugin_api->get_plugin_file( $slug );
+			$plugin_info = $this->required_plugin_api->get_plugin_info( $slug );
+
 			$this->plugins_status[ $slug ] = array(
-				'installed'          => $this->is_plugin_installed( $this->required_plugin_api->get_plugin_file( $slug ) ),
-				'activated'          => $this->is_plugin_active( $this->required_plugin_api->get_plugin_file( $slug ) ),
-				'version_compatible' => $this->is_plugin_version_compatible(
-					$this->required_plugin_api->get_plugin_file( $slug ),
-					$this->required_plugin_api->get_plugin_info( $slug )
-				),
+				'installed'          => $this->is_plugin_installed( $plugin_file ),
+				'activated'          => $this->is_plugin_active( $plugin_file ),
+				'version_compatible' => $this->is_plugin_version_compatible( $plugin_file, $plugin_info ),
 				'min_version'        => $this->required_plugin_api->get_plugin_min_version( $slug ),
-				'name'               => $this->required_plugin_api->get_plugin_info( $slug )['name'],
+				'name'               => $plugin_info['name'],
+				'file'               => $plugin_file,
 			);
 		}
 
@@ -64,12 +78,13 @@ class Dependency_Checker_Service {
 	}
 
 	/**
-	 * Check if a plugin is installed
+	 * Check if a plugin is installed.
 	 *
-	 * @param string $plugin_file Plugin file path.
-	 * @return bool
+	 * @since  1.0.0
+	 * @param  string $plugin_file The plugin file path.
+	 * @return bool Whether the plugin is installed.
 	 */
-	private function is_plugin_installed( string $plugin_file ): bool {
+	private function is_plugin_installed( $plugin_file ) {
 		if ( ! function_exists( 'get_plugin_data' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
@@ -79,26 +94,29 @@ class Dependency_Checker_Service {
 	}
 
 	/**
-	 * Check if a plugin is active
+	 * Check if a plugin is active.
 	 *
-	 * @param string $plugin_file Plugin file path.
-	 * @return bool
+	 * @since  1.0.0
+	 * @param  string $plugin_file The plugin file path.
+	 * @return bool Whether the plugin is active.
 	 */
-	private function is_plugin_active( string $plugin_file ): bool {
+	private function is_plugin_active( $plugin_file ) {
 		if ( ! function_exists( 'is_plugin_active' ) ) {
-			include_once ABSPATH . 'wp-admin/includes/plugin.php';
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
+
 		return is_plugin_active( $plugin_file );
 	}
 
 	/**
-	 * Get plugin version
+	 * Check if a plugin version is compatible.
 	 *
-	 * @param string $plugin_file Plugin file path.
-	 * @param array  $requirements Requirements.
-	 * @return boolean
+	 * @since  1.0.0
+	 * @param  string $plugin_file   The plugin file path.
+	 * @param  array  $requirements  The plugin requirements array.
+	 * @return bool Whether the plugin version is compatible.
 	 */
-	private function is_plugin_version_compatible( string $plugin_file, array $requirements ): bool {
+	private function is_plugin_version_compatible( $plugin_file, $requirements ) {
 		if ( ! function_exists( 'get_plugin_data' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
@@ -106,8 +124,9 @@ class Dependency_Checker_Service {
 		if ( $this->is_plugin_installed( $plugin_file ) ) {
 			$plugin_path = WP_PLUGIN_DIR . '/' . $plugin_file;
 			$plugin_data = get_plugin_data( $plugin_path );
-			return version_compare( $plugin_data['Version'], $requirements['min_version'], '<' );
+			return version_compare( $plugin_data['Version'], $requirements['min_version'], '>=' );
 		}
+
 		return false;
 	}
 }

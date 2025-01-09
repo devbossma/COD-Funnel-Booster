@@ -7,7 +7,7 @@
 
 namespace DevBossMa\CODFunnelBooster\Services\Dependency;
 
-use DevBossMa\CODFunnelBooster\Interface\Plugin_Dependency_Api_Interface;
+use DevBossMa\CODFunnelBooster\Interfaces\Plugin_Dependency_Api_Interface;
 
 /**
  * Plugin_Dependency_Api_Service Definition class.

@@ -17,7 +17,7 @@ use League\Container\ReflectionContainer;
 use DevBossMa\CODFunnelBooster\Managers\Setup_Wizard;
 use DevBossMa\CODFunnelBooster\Managers\Dependency_Manager;
 use DevBossMa\CODFunnelBooster\Managers\Config_Manager;
-use DevBossMa\CODFunnelBooster\Interface\Plugin_Dependency_Api_Interface;
+use DevBossMa\CODFunnelBooster\Interfaces\Plugin_Dependency_Api_Interface;
 use DevBossMa\CODFunnelBooster\Services\Dependency\Dependency_Checker_Service;
 use DevBossMa\CODFunnelBooster\Services\Dependency\Plugin_Dependency_Api_Service_V1;
 use DevBossMa\CODFunnelBooster\Core\Contracts\GeoServiceInterface;

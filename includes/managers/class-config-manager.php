@@ -63,32 +63,48 @@ class Config_Manager {
 				'callback'            => array( $this, 'save_store_settings' ),
 				'permission_callback' => array( $this, 'check_admin_permissions' ),
 				'args'                => array(
-					'storeName'    => array(
+					'buisinessName'     => array(
 						'required' => true,
 						'type'     => 'string',
 					),
-					'storeEmail'   => array(
+					'buisinessEmail'    => array(
 						'required' => true,
 						'type'     => 'string',
 					),
-					'storeAddress' => array(
+					'buisinessCountry'  => array(
 						'required' => true,
 						'type'     => 'string',
 					),
-					'storeCity'    => array(
-						'required' => true,
-						'type'     => 'string',
-					),
-					'storeCountry' => array(
-						'required' => true,
-						'type'     => 'string',
-					),
-					'storeState'   => array(
+					'buisinessState'    => array(
 						'required' => false,
 						'type'     => 'string',
 					),
+					'buisinessCity'     => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+					'buisinessAddress'  => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+					'buisinessCurrency' => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+					'sellOption'        => array(
+						'required' => true,
+						'type'     => 'string',
+					),
+					'specificCountries' => array(
+						'required' => false,
+						'type'     => 'array',
+					),
+					'excludedCountries' => array(
+						'required' => false,
+						'type'     => 'array',
+					),
 				),
-			)
+			),
 		);
 	}
 
@@ -106,26 +122,24 @@ class Config_Manager {
 			}
 
 			$config = array(
-				'storeInfo'  => array(
-					'storeName'    => get_option( 'blogname' ),
-					'storeEmail'   => get_option( 'admin_email' ),
-					'storeAddress' => get_option( 'woocommerce_store_address' ),
-					'storeCity'    => get_option( 'woocommerce_store_city' ),
-					'storeCountry' => $this->geo_service_provider->get_base_country(),
-					'storeState'   => $this->geo_service_provider->get_base_state(),
+				'buisinessInfo' => array(
+					'buisinessName'     => get_option( 'blogname' ),
+					'buisinessEmail'    => get_option( 'admin_email' ),
+					'buisinessCountry'  => $this->geo_service_provider->get_base_country(),
+					'buisinessState'    => $this->geo_service_provider->get_base_state(),
+					'buisinessCity'     => get_option( 'woocommerce_store_city' ),
+					'buisinessAdress'   => get_option( 'woocommerce_store_address' ),
+					'buisinessCurrency' => get_woocommerce_currency(),
 				),
-				'geoService' => array(
-					'countries'         => $this->geo_service_provider->get_countries(),
-					'allowedCountries'  => $this->geo_service_provider->get_allowed_countries(),
-					'baseCountry'       => $this->geo_service_provider->get_base_country(),
-					'baseState'         => $this->geo_service_provider->get_base_state(),
+				'geoConfig'     => array(
+					'allCountries'      => $this->geo_service_provider->get_countries(),
+					'states'            => $this->geo_service_provider->get_states_by_country_code( $this->geo_service_provider->get_base_country() ),
 					'sellOption'        => get_option( 'woocommerce_allowed_countries', 'all' ),
 					'specificCountries' => get_option( 'woocommerce_specific_allowed_countries', array() ),
 					'excludedCountries' => get_option( 'woocommerce_excluded_countries', array() ),
 				),
 			);
 
-			error_log( 'Store config generated successfully: ' . print_r( $config, true ) ); // phpcs:ignore
 			return $config;
 
 		} catch ( \Exception $e ) {
@@ -158,14 +172,12 @@ class Config_Manager {
 			}
 
 			// Update WordPress and WooCommerce settings.
-			update_option( 'blogname', sanitize_text_field( $request['storeName'] ) );
-			update_option( 'admin_email', sanitize_email( $request['storeEmail'] ) );
-			update_option( 'woocommerce_store_address', sanitize_text_field( $request['storeAddress'] ) );
-			update_option( 'woocommerce_store_city', sanitize_text_field( $request['storeCity'] ) );
-
-			// Update country and state.
-			$country = sanitize_text_field( $request['storeCountry'] );
-			$state   = sanitize_text_field( $request['storeState'] ?? '' );
+			update_option( 'blogname', sanitize_text_field( $request['buisinessName'] ) );
+			update_option( 'admin_email', sanitize_email( $request['buisinessEmail'] ) );
+			update_option( 'woocommerce_store_address', sanitize_text_field( $request['buisinessAddress'] ) );
+			update_option( 'woocommerce_store_city', sanitize_text_field( $request['buisinessCity'] ) );
+			update_option( 'woocommerce_default_country', sanitize_text_field( $request['buisinessCountry'] ) . ':' . sanitize_text_field( $request['buisinessState'] ) );
+			update_option( 'woocommerce_currency', sanitize_text_field( $request['buisinessCurrency'] ) );
 
 			update_option( 'woocommerce_default_country', $country . ':' . $state );
 
@@ -223,11 +235,11 @@ class Config_Manager {
 					'isWooCommerceReady' => false,
 					'message'            => 'WooCommerce is not initialized yet',
 					'data'               => array(
-						'storeInfo'  => array(
+						'buisinessInfo' => array(
 							'storeName'  => get_option( 'blogname' ),
 							'storeEmail' => get_option( 'admin_email' ),
 						),
-						'geoService' => array(
+						'geoConfig'     => array(
 							'countries' => array(),
 							'states'    => array(),
 						),
@@ -244,11 +256,11 @@ class Config_Manager {
 				'isWooCommerceReady' => false,
 				'error'              => $e->getMessage(),
 				'data'               => array(
-					'storeInfo'  => array(
+					'buisinessInfo' => array(
 						'storeName'  => get_option( 'blogname' ),
 						'storeEmail' => get_option( 'admin_email' ),
 					),
-					'geoService' => array(
+					'geoConfig'     => array(
 						'countries' => array(),
 						'states'    => array(),
 					),

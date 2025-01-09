@@ -5,7 +5,7 @@
  * @package CODFunnelBooster
  */
 
-namespace DevBossMa\CODFunnelBooster\Interface;
+namespace DevBossMa\CODFunnelBooster\Interfaces;
 
 interface Plugin_Dependency_Api_Interface {
 
