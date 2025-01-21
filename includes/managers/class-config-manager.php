@@ -39,15 +39,7 @@ class Config_Manager {
 	 * @return void
 	 */
 	public function init(): void {
-		// Only register REST routes after WooCommerce is initialized.
-		add_action(
-			'woocommerce_init',
-			function () {
-				add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
-			}
-		);
-
-		// Add script localization.
+		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 	}
 
@@ -88,7 +80,7 @@ class Config_Manager {
 						'type'     => 'string',
 					),
 					'buisinessCurrency' => array(
-						'required' => true,
+						'required' => false,
 						'type'     => 'string',
 					),
 					'sellOption'        => array(
@@ -106,6 +98,25 @@ class Config_Manager {
 				),
 			),
 		);
+
+		register_rest_route(
+			'cod-funnel-booster/v1',
+			'/states/(?P<country>[A-Z]{2})',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_states_for_country' ),
+				'permission_callback' => array( $this, 'check_admin_permissions' ),
+				'args'                => array(
+					'country' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'validate_callback' => function ( $param ) {
+							return strlen( $param ) === 2;
+						},
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -121,12 +132,21 @@ class Config_Manager {
 				throw new \Exception( 'WooCommerce must be loaded before accessing store configuration' );
 			}
 
+			// Get custom states.
+			$custom_states   = get_option( 'cod_funnel_custom_states', array() );
+			$current_country = $this->geo_service_provider->get_base_country();
+			$custom_state    = isset( $custom_states[ $current_country ] ) ? $custom_states[ $current_country ] : '';
+
+			// If the country has no predefined states but has a custom state, use it.
+			$states = $this->geo_service_provider->get_states_by_country_code( $current_country );
+			$state  = empty( $states ) ? $custom_state : $this->geo_service_provider->get_base_state();
+
 			$config = array(
 				'buisinessInfo' => array(
 					'buisinessName'     => get_option( 'blogname' ),
 					'buisinessEmail'    => get_option( 'admin_email' ),
 					'buisinessCountry'  => $this->geo_service_provider->get_base_country(),
-					'buisinessState'    => $this->geo_service_provider->get_base_state(),
+					'buisinessState'    => $state,
 					'buisinessCity'     => get_option( 'woocommerce_store_city' ),
 					'buisinessAdress'   => get_option( 'woocommerce_store_address' ),
 					'buisinessCurrency' => get_woocommerce_currency(),
@@ -136,7 +156,8 @@ class Config_Manager {
 					'states'            => $this->geo_service_provider->get_states_by_country_code( $this->geo_service_provider->get_base_country() ),
 					'sellOption'        => get_option( 'woocommerce_allowed_countries', 'all' ),
 					'specificCountries' => get_option( 'woocommerce_specific_allowed_countries', array() ),
-					'excludedCountries' => get_option( 'woocommerce_excluded_countries', array() ),
+					'excludedCountries' => get_option( 'woocommerce_all_except_countries', array() ),
+					'customStates'      => $custom_states,
 				),
 			);
 
@@ -171,20 +192,79 @@ class Config_Manager {
 				throw new \Exception( 'WooCommerce must be loaded' );
 			}
 
+			$country = sanitize_text_field( $request['buisinessCountry'] );
+			$state   = sanitize_text_field( $request['buisinessState'] );
+
+			// Validate country first.
+			if ( ! $this->geo_service_provider->is_valid_country_code( $country ) ) {
+				throw new \Exception( 'Invalid country code provided' );
+			}
+
+			// Get available states for the country.
+			$available_states = $this->geo_service_provider->get_states_by_country_code( $country );
+
+			// Handle custom states storage.
+			$custom_states = get_option( 'cod_funnel_custom_states', array() );
+
+			// For countries with no states, accept any non-empty string as state.
+			if ( empty( $available_states ) ) {
+				// If country doesn't have predefined states, just sanitize the input.
+				$state = ! empty( $state ) ? sanitize_text_field( $state ) : '';
+				// If country doesn't have predefined states, store in our custom option.
+				if ( ! empty( $state ) ) {
+					$custom_states[ $country ] = $state;
+					update_option( 'cod_funnel_custom_states', $custom_states );
+				}
+			} elseif ( empty( $state ) || ! isset( $available_states[ $state ] ) ) {
+					throw new \Exception( 'Invalid state code provided for country with predefined states' );
+			} elseif ( isset( $custom_states[ $country ] ) ) {
+					unset( $custom_states[ $country ] );
+					update_option( 'cod_funnel_custom_states', $custom_states );
+			}
+
+			// Update settings.
+			update_option( 'woocommerce_default_country', $country . ':' . $state );
+
 			// Update WordPress and WooCommerce settings.
 			update_option( 'blogname', sanitize_text_field( $request['buisinessName'] ) );
 			update_option( 'admin_email', sanitize_email( $request['buisinessEmail'] ) );
 			update_option( 'woocommerce_store_address', sanitize_text_field( $request['buisinessAddress'] ) );
 			update_option( 'woocommerce_store_city', sanitize_text_field( $request['buisinessCity'] ) );
-			update_option( 'woocommerce_default_country', sanitize_text_field( $request['buisinessCountry'] ) . ':' . sanitize_text_field( $request['buisinessState'] ) );
-			update_option( 'woocommerce_currency', sanitize_text_field( $request['buisinessCurrency'] ) );
-
 			update_option( 'woocommerce_default_country', $country . ':' . $state );
 
-			// Set allowed countries.
-			$this->geo_service_provider->update_allowed_countries( 'specific', array( $country ) );
+			if ( ! empty( $request['buisinessCurrency'] ) ) {
+				update_option( 'woocommerce_currency', sanitize_text_field( $request['buisinessCurrency'] ) );
+			}
 
-			// Return updated config.
+			$sell_option        = sanitize_text_field( $request['sellOption'] );
+			$selected_countries = array();
+
+			// Ensure we're working with arrays and sanitize each country code.
+			if ( 'specific' === $sell_option && isset( $request['specificCountries'] ) ) {
+				$selected_countries = array_map( 'sanitize_text_field', (array) $request['specificCountries'] );
+			} elseif ( 'all_except' === $sell_option && isset( $request['excludedCountries'] ) ) {
+				$selected_countries = array_map( 'sanitize_text_field', (array) $request['excludedCountries'] );
+			}
+
+			// Validate all country codes before updating.
+			foreach ( $selected_countries as $code ) {
+				if ( ! array_key_exists( $code, $this->geo_service_provider->get_countries() ) ) {
+					throw new \Exception( sprintf( 'Invalid country code provided: %s', $code ) );
+				}
+			}
+
+			// Set allowed countries.
+			$result = $this->geo_service_provider->update_allowed_countries( $sell_option, $selected_countries );
+
+			if ( ! $result ) {
+				throw new \Exception( 'Failed to update allowed countries' );
+			}
+
+			// Clear WooCommerce cache.
+			if ( class_exists( 'WC_Cache_Helper' ) ) {
+				\WC_Cache_Helper::get_transient_version( 'shipping', true );
+			}
+
 			return new WP_REST_Response(
 				array(
 					'message' => 'Store settings updated successfully',
@@ -192,11 +272,27 @@ class Config_Manager {
 				),
 				200
 			);
-
 		} catch ( \Exception $e ) {
-			error_log( 'Store settings update failed: ' . $e->getMessage() ); // phpcs:ignore
+			error_log( // phpcs:ignore
+				'Store settings update failed: ' . print_r( // phpcs:ignore
+					array(
+						'country' => $country ?? 'none',
+						'state'   => $state ?? 'none',
+						'error'   => $e->getMessage(),
+					),
+					true
+				)
+			);
+
 			return new WP_REST_Response(
-				array( 'message' => $e->getMessage() ),
+				array(
+					'message' => $e->getMessage(),
+					'code'    => 'store_settings_error',
+					'debug'   => array(
+						'country' => $country ?? 'none',
+						'state'   => $state ?? 'none',
+					),
+				),
 				500
 			);
 		}
@@ -265,6 +361,49 @@ class Config_Manager {
 						'states'    => array(),
 					),
 				),
+			);
+		}
+	}
+
+	/**
+	 * Get states for a specific country
+	 *
+	 * @param WP_REST_Request $request The request object.
+	 * @return WP_REST_Response
+	 * @throws  \Exception If an error occurs.
+	 */
+	public function get_states_for_country( WP_REST_Request $request ): WP_REST_Response {
+		try {
+			$country_code = $request->get_param( 'country' );
+
+			if ( empty( $country_code ) ) {
+				throw new \Exception( 'Country code is required' );
+			}
+
+			// Get states for the country.
+			$states = $this->geo_service_provider->get_states_by_country_code( $country_code );
+
+			// If no states found, return empty array (some countries don't have states).
+			if ( empty( $states ) ) {
+				$states = array();
+			}
+
+			return new WP_REST_Response(
+				array(
+					'success' => true,
+					'states'  => $states,
+					'country' => $country_code, // Include country code for debugging.
+				)
+			);
+		} catch ( \Exception $e ) {
+			error_log( 'Error fetching states: ' . $e->getMessage() ); // phpcs:ignore
+			return new WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => $e->getMessage(),
+					'country' => $country_code ?? 'unknown',
+				),
+				500
 			);
 		}
 	}

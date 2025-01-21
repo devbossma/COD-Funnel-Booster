@@ -57,4 +57,24 @@ class GeoServiceProvider implements CFBServiceProviderInterface {
 	public function __call( string $name, array $arguments ) {
 		return $this->geo_service->$name( ...$arguments );
 	}
+
+	/**
+	 * Check if a country code is valid
+	 *
+	 * @param string $country_code The country code to validate.
+	 * @return bool
+	 */
+	public function is_valid_country_code( string $country_code ): bool {
+		return $this->geo_service->is_valid_country_code( $country_code );
+	}
+
+	/**
+	 * Check if a state code is valid
+	 *
+	 * @param string $state_code The state code to validate.
+	 * @return bool
+	 */
+	public function is_valid_state_code( string $state_code ): bool {
+		return $this->geo_service->is_valid_state_code( $state_code );
+	}
 }

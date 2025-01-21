@@ -4,7 +4,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 const StepHeroBanner = ({ step, title, description, totalSteps }) => {
     return (
-        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/50 dark:border-border/30">
+        <div className="sticky top-0 z-20 h-25 bg-background/80 backdrop-blur-xl border-b border-border/50 dark:border-border/30">
         <div className="container max-w-4xl mx-auto px-6">
             <div className="py-6">
             <div className="flex justify-between items-center mb-6">

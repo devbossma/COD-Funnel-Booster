@@ -53,8 +53,8 @@ class WooCommerceGeoService implements GeoServiceInterface {
 	 */
 	private function get_geo_service(): \WC_Countries {
 		if ( ! isset( $this->geo_service ) ) {
-			// Wait for woocommerce_init hook to be fired.
-			if ( ! did_action( 'woocommerce_init' ) ) {
+			// Waiting for woocommerce_loaded or woocommerce_init hooks to be fired.
+			if ( ! did_action( 'woocommerce_loaded' ) || ! did_action( 'woocommerce_init' ) ) {
 				throw GeoServiceException::wooCommerceNotInitialized();
 			}
 
@@ -77,6 +77,13 @@ class WooCommerceGeoService implements GeoServiceInterface {
 	 */
 	public function get_countries(): array {
 		try {
+			if ( ! did_action( 'woocommerce_init' ) ) {
+				throw GeoServiceException::wooCommerceNotInitialized();
+			}
+
+			if ( ! function_exists( 'WC' ) || ! WC() ) {
+				throw GeoServiceException::wooCommerceNotInitialized();
+			}
 			return $this->get_geo_service()->get_countries();
 		} catch ( Exception $e ) {
 			if ( $this->logger ) {
@@ -112,17 +119,35 @@ class WooCommerceGeoService implements GeoServiceInterface {
 			if ( $this->logger ) {
 				$this->logger->error( 'Invalid country code provided: ' . esc_html( $country_code ) );
 			}
-			throw GeoServiceException::invalidCountryCode( esc_html( $country_code ) );
+			return array();
 		}
 
 		try {
 			$states = $this->get_geo_service()->get_states( $country_code );
-			return $states ? $states : array();
+
+			// Log the result for debugging.
+			if ( $this->logger ) {
+				$this->logger->debug(
+					sprintf(
+						'States for country %s: %s',
+						$country_code,
+						wp_json_encode( $states )
+					)
+				);
+			}
+
+			return is_array( $states ) ? $states : array();
 		} catch ( Exception $e ) {
 			if ( $this->logger ) {
-				$this->logger->error( 'Failed to get states for country: ' . esc_html( $country_code ) . '. Error: ' . esc_html( $e->getMessage() ) );
+				$this->logger->error(
+					sprintf(
+						'Failed to get states for country %s: %s',
+						esc_html( $country_code ),
+						esc_html( $e->getMessage() )
+					)
+				);
 			}
-			throw GeoServiceException::dataRetrievalFailed( 'Failed to get states for country: ' . esc_html( $country_code ) );
+			return array();
 		}
 	}
 
@@ -244,7 +269,7 @@ class WooCommerceGeoService implements GeoServiceInterface {
 	 * @param string $state_code The state code.
 	 * @return bool
 	 */
-	private function is_valid_state_code( string $state_code ): bool {
+	public function is_valid_state_code( string $state_code ): bool {
 		foreach ( $this->get_countries() as $country_code => $country ) {
 			$states = $this->get_states_by_country_code( $country_code );
 			if ( isset( $states[ $state_code ] ) ) {
@@ -260,7 +285,7 @@ class WooCommerceGeoService implements GeoServiceInterface {
 	 * @param string $country_code The country code.
 	 * @return bool
 	 */
-	private function is_valid_country_code( string $country_code ): bool {
+	public function is_valid_country_code( string $country_code ): bool {
 		return isset( $this->get_countries()[ $country_code ] );
 	}
 
@@ -297,94 +322,42 @@ class WooCommerceGeoService implements GeoServiceInterface {
 	 * @param array  $country_codes Array of country codes when type is 'specific' or 'all_except'.
 	 * @return bool
 	 * @throws GeoServiceException When invalid country codes provided.
+	 * @throws Exception When there is an error updating allowed countries.
 	 */
 	public function update_allowed_countries( string $allowed_type, array $country_codes = array() ): bool {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			if ( $this->logger ) {
-				$this->logger->error( 'Insufficient permissions to update WooCommerce settings' );
-			}
-			return false;
-		}
-
 		try {
 			if ( ! in_array( $allowed_type, array( 'all', 'specific', 'all_except' ), true ) ) {
-				throw new GeoServiceException( esc_html__( 'Invalid allowed countries type', 'cod-funnel-booster' ) );
+				throw new GeoServiceException( 'Invalid allowed countries type' );
 			}
 
-			// Validate country codes.
-			if ( ! empty( $country_codes ) ) {
+			// Only validate country codes if they are provided and needed.
+			if ( ! empty( $country_codes ) && in_array( $allowed_type, array( 'specific', 'all_except' ), true ) ) {
 				foreach ( $country_codes as $code ) {
 					if ( ! $this->is_valid_country_code( $code ) ) {
-						throw GeoServiceException::invalidCountryCode( esc_html( $code ) );
+						throw new GeoServiceException( "Invalid country code: {$code}" );
 					}
 				}
 			}
 
-			// Get current allowed countries.
-			$current_allowed_type       = get_option( 'woocommerce_allowed_countries', 'all' );
-			$current_specific_countries = get_option( 'woocommerce_specific_allowed_countries', array() );
-			$current_excluded_countries = get_option( 'woocommerce_excluded_countries', array() );
+			// Always update the allowed countries type.
+			update_option( 'woocommerce_allowed_countries', $allowed_type );
 
-			// Log current state.
-			if ( $this->logger ) {
-				$this->logger->debug(
-					sprintf(
-						'Updating allowed countries. Current: type=%s, countries=%s',
-						$current_allowed_type,
-						wp_json_encode( $current_specific_countries )
-					)
-				);
+			// Update specific or excluded countries based on type.
+			if ( 'specific' === $allowed_type ) {
+				update_option( 'woocommerce_specific_allowed_countries', array_unique( $country_codes ) );
+			} elseif ( 'all_except' === $allowed_type ) {
+				update_option( 'woocommerce_all_except_countries', array_unique( $country_codes ) );
 			}
 
-			$success = true;
+			$this->clear_woocommerce_cache();
 
-			// Only update type if it's different.
-			if ( $current_allowed_type !== $allowed_type ) {
-				$success = update_option( 'woocommerce_allowed_countries', $allowed_type );
-			}
-
-			// Update countries if specific type and countries have changed.
-			if ( $success && 'specific' === $allowed_type ) {
-				$current_countries_serialized = wp_json_encode( $current_specific_countries );
-				$new_countries_serialized     = wp_json_encode( $country_codes );
-
-				if ( $current_countries_serialized !== $new_countries_serialized ) {
-					$success = update_option( 'woocommerce_specific_allowed_countries', $country_codes );
-				}
-			}
-			if ( $success && 'all_except' === $allowed_type ) {
-				$current_countries_serialized = wp_json_encode( $current_excluded_countries );
-				$new_countries_serialized     = wp_json_encode( $country_codes );
-
-				if ( $current_countries_serialized !== $new_countries_serialized ) {
-					$success = update_option( 'woocommerce_excluded_countries', $country_codes );
-				}
-			}
-
-			// Log result.
-			if ( $this->logger ) {
-				$this->logger->debug(
-					sprintf(
-						'Update result: success=%s, current_type=%s, new_type=%s, countries_changed=%s',
-						$success ? 'true' : 'false',
-						$current_allowed_type,
-						$allowed_type,
-						$current_countries_serialized !== $new_countries_serialized ? 'true' : 'false'
-					)
-				);
-			}
-
-			if ( $success ) {
-				$this->clear_woocommerce_cache();
-			}
-
-			return $success;
+			return true;
 
 		} catch ( Exception $e ) {
 			if ( $this->logger ) {
 				$this->logger->error( 'Failed to update allowed countries: ' . $e->getMessage() );
 			}
-			return false;
+			throw $e;
 		}
 	}
 

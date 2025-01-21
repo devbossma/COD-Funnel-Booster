@@ -212,7 +212,7 @@ const StepHeroBanner = ({
   totalSteps
 }) => {
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
-    className: "sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/50 dark:border-border/30",
+    className: "sticky top-0 z-20 h-25 bg-background/80 backdrop-blur-xl border-b border-border/50 dark:border-border/30",
     children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
       className: "container max-w-4xl mx-auto px-6",
       children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
@@ -359,6 +359,52 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+const StateInputField = ({
+  states,
+  value,
+  onChange,
+  country
+}) => {
+  const hasStates = states && Object.keys(states).length > 0;
+  const customStates = window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.customStates || {};
+  if (hasStates) {
+    return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.Select, {
+      value: value,
+      onValueChange: onChange,
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectTrigger, {
+        id: "states",
+        className: "h-10 px-3 py-2 bg-background dark:bg-background/5 border border-input dark:border-input/20 text-foreground placeholder:text-muted-foreground/60 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 hover:border-primary/30 transition-colors",
+        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectValue, {
+          placeholder: "Select a State",
+          className: "text-muted-foreground",
+          children: value && states[value]
+        })
+      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectContent, {
+        className: "select-modern-content",
+        children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
+          className: "max-h-[300px] overflow-y-auto modern-scroll",
+          children: Object.entries(states).map(([code, state]) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectItem, {
+            value: code,
+            className: "select-modern-item",
+            children: state
+          }, code))
+        })
+      })]
+    });
+  }
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_input__WEBPACK_IMPORTED_MODULE_4__.Input, {
+    id: "buisinessState",
+    value: value,
+    onChange: e => {
+      const newValue = e.target.value;
+      if (value !== newValue) {
+        onChange(newValue);
+      }
+    },
+    placeholder: `Enter state/region for ${country}`,
+    className: "h-10 px-3 py-2 bg-background dark:bg-background/5 border border-input dark:border-input/20 text-foreground placeholder:text-muted-foreground/60 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 hover:border-primary/30 transition-colors"
+  });
+};
 const InitialConfigurationStep = ({
   step,
   setStep,
@@ -386,33 +432,86 @@ const InitialConfigurationStep = ({
       const {
         buisinessInfo,
         geoConfig
-      } = window.codFunnelConfigManager.storeConfig.data;
+      } = window.codFunnelConfigManager?.storeConfig?.data;
       if (buisinessInfo && geoConfig) {
-        setFormData({
+        const hasStates = geoConfig.states && Object.keys(geoConfig.states).length > 0;
+        const customState = !hasStates && geoConfig.customStates?.[buisinessInfo.buisinessCountry];
+        setFormData(prev => ({
+          ...prev,
           buisinessName: buisinessInfo.buisinessName || '',
           buisinessEmail: buisinessInfo.buisinessEmail || '',
           buisinessCountry: buisinessInfo.buisinessCountry || '',
-          buisinessState: buisinessInfo.buisinessState || '',
+          ...(hasStates || customState ? {
+            buisinessState: hasStates ? buisinessInfo.buisinessState : customState
+          } : {}),
           buisinessCity: buisinessInfo.buisinessCity || '',
           buisinessAddress: buisinessInfo.buisinessAdress || '',
           buisinessCurrency: buisinessInfo.buisinessCurrency || '',
           sellOption: geoConfig.sellOption || 'all',
           specificCountries: geoConfig.specificCountries || [],
           excludedCountries: geoConfig.excludedCountries || []
-        });
+        }));
       }
     }
   }, []);
+
+  // Update the states fetching useEffect
+  (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
+    if (formData.buisinessCountry) {
+      const countryCode = formData.buisinessCountry;
+      const currentState = formData.buisinessState; // Store current state before fetching
+      const currentCustomState = window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.customStates?.[countryCode];
+      fetch(`${window.codFunnelConfigManager.restUrl}/states/${countryCode}`, {
+        headers: {
+          'X-WP-Nonce': window.codFunnelConfigManager.nonce,
+          'Accept': 'application/json'
+        }
+      }).then(response => response.json()).then(data => {
+        console.log('Received states:', data);
+        if (window.codFunnelConfigManager?.storeConfig?.data?.geoConfig) {
+          const newStates = data.states || {};
+          window.codFunnelConfigManager.storeConfig.data.geoConfig.states = newStates;
+
+          // Determine if we should keep the current state
+          if (Object.keys(newStates).length > 0) {
+            // If country has predefined states and current state is valid, keep it
+            if (currentState && Object.keys(newStates).includes(currentState)) {
+              return; // Keep the current state
+            }
+            // Reset state if it's not valid for the new country
+            setFormData(prev => ({
+              ...prev,
+              buisinessState: ''
+            }));
+          } else if (currentCustomState) {
+            // Use custom state if available for countries without predefined states
+            setFormData(prev => ({
+              ...prev,
+              buisinessState: currentCustomState
+            }));
+          } else {
+            // Reset state for countries without states
+            setFormData(prev => ({
+              ...prev,
+              buisinessState: ''
+            }));
+          }
+        }
+      }).catch(error => {
+        console.error('Error fetching states:', error);
+        setParentError('Failed to fetch states for selected country');
+      });
+    }
+  }, [formData.buisinessCountry]);
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    // Clear any existing errors when user makes changes
     if (parentError) setParentError(null);
   };
   const validateFormData = () => {
-    const requiredFields = ['buisinessName', 'buisinessEmail', 'buisinessCountry', 'buisinessCity', 'buisinessAddress', 'buisinessCurrency', 'sellOption'];
+    const requiredFields = ['buisinessName', 'buisinessEmail', 'buisinessCountry', 'buisinessState', 'buisinessCity', 'buisinessAddress', 'sellOption'];
     const missingFields = requiredFields.filter(field => !formData[field]);
     if (missingFields.length > 0) {
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
@@ -422,17 +521,23 @@ const InitialConfigurationStep = ({
     setIsLoading(true);
     try {
       validateFormData();
+      const countryCode = formData.buisinessCountry;
+      const availableStates = window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.states || {};
+      let stateCode = formData.buisinessState;
+      const sellOptionData = {
+        ...formData,
+        buisinessCountry: countryCode,
+        buisinessState: stateCode,
+        specificCountries: formData.sellOption === 'specific' ? formData.specificCountries : [],
+        excludedCountries: formData.sellOption === 'all_except' ? formData.excludedCountries : []
+      };
       const response = await fetch(`${window.codFunnelConfigManager.restUrl}/store-settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-WP-Nonce': window.codFunnelConfigManager.nonce
         },
-        body: JSON.stringify({
-          ...formData,
-          specificCountries: formData.sellOption === 'specific' ? formData.specificCountries : [],
-          excludedCountries: formData.sellOption === 'all_except' ? formData.excludedCountries : []
-        })
+        body: JSON.stringify(sellOptionData)
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -460,15 +565,15 @@ const InitialConfigurationStep = ({
           children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_tabs__WEBPACK_IMPORTED_MODULE_6__.TabsTrigger, {
             value: "cfb-info",
             className: "rounded-md px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background dark:data-[state=active]:bg-background/10 data-[state=active]:text-foreground dark:data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground dark:text-muted-foreground",
-            children: "__(Business Information)"
+            children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_2__.__)('Business Information', 'cod-funnel-booster')
           }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_tabs__WEBPACK_IMPORTED_MODULE_6__.TabsTrigger, {
             value: "cfb-config",
             className: "rounded-md px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background dark:data-[state=active]:bg-background/10 data-[state=active]:text-foreground dark:data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground dark:text-muted-foreground",
-            children: "Store Configurations"
+            children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_2__.__)('Store Configurations', 'cod-funnel-booster')
           })]
         })
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-        className: "flex-1 overflow-y-auto px-4 modern-scroll",
+        className: "flex-1 overflow-y-auto px-4 modern-scroll pb-3",
         children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_tabs__WEBPACK_IMPORTED_MODULE_6__.TabsContent, {
           value: "cfb-info",
           className: "mt-2 space-y-8",
@@ -479,9 +584,12 @@ const InitialConfigurationStep = ({
               children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
                 className: "space-y-2",
                 children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
+                  Label: true,
+                  htmlFor: "buisinessName",
                   className: "text-sm font-medium text-foreground",
                   children: "Store Name"
                 }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_input__WEBPACK_IMPORTED_MODULE_4__.Input, {
+                  id: "buisinessName",
                   value: formData.buisinessName,
                   onChange: e => handleInputChange('buisinessName', e.target.value),
                   className: "h-10 px-3 py-2 bg-background dark:bg-background/5 border border-input dark:border-input/20 text-foreground placeholder:text-muted-foreground/60 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 hover:border-primary/30 transition-colors",
@@ -492,14 +600,14 @@ const InitialConfigurationStep = ({
                 children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
                   htmlFor: "buisinessEmail",
                   className: "text-sm font-medium text-foreground",
-                  children: "Business Email"
+                  children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_2__.__)('Business Email', 'cod-funnel-booster')
                 }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_input__WEBPACK_IMPORTED_MODULE_4__.Input, {
                   id: "buisinessEmail",
                   type: "email",
                   value: formData.buisinessEmail,
                   onChange: e => handleInputChange('buisinessEmail', e.target.value),
-                  className: "h-10 px-3 py-2 bg-background dark:bg-background/5 dark:text-slate-200 border border-input dark:border-input/20 text-foreground placeholder:text-muted-foreground/60 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 hover:border-primary/30 transition-colors",
-                  placeholder: "Enter business email"
+                  className: "form-input-base",
+                  placeholder: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_2__.__)('Enter business email', 'cod-funnel-booster')
                 })]
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
                 className: "space-y-2",
@@ -516,14 +624,15 @@ const InitialConfigurationStep = ({
                     children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectValue, {
                       placeholder: "Select a country",
                       className: "text-muted-foreground",
-                      children: window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.allCountries[formData.buisinessCountry]
+                      children: formData.buisinessCountry && window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.allCountries[formData.buisinessCountry]
                     })
                   }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectContent, {
                     className: "select-modern-content",
                     children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
                       className: "max-h-[300px] overflow-y-auto modern-scroll",
                       children: Object.entries(window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.allCountries || {}).map(([code, country]) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectItem, {
-                        value: country,
+                        value: code // Change this to use code instead of country name
+                        ,
                         className: "select-modern-item",
                         children: country
                       }, code))
@@ -539,28 +648,11 @@ const InitialConfigurationStep = ({
                   htmlFor: "states",
                   className: "text-sm font-medium text-foreground",
                   children: "States"
-                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.Select, {
+                }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(StateInputField, {
+                  states: window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.states || {},
                   value: formData.buisinessState,
-                  onValueChange: value => handleInputChange('buisinessState', value),
-                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectTrigger, {
-                    id: "states",
-                    className: "h-10 px-3 py-2 bg-background dark:bg-background/5 border border-input dark:border-input/20 text-foreground placeholder:text-muted-foreground/60 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 hover:border-primary/30 transition-colors",
-                    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectValue, {
-                      placeholder: "Select a State",
-                      className: "text-muted-foreground",
-                      children: formData.buisinessCountry && window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.states[formData.buisinessState]
-                    })
-                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectContent, {
-                    className: "select-modern-content",
-                    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
-                      className: "max-h-[300px] overflow-y-auto modern-scroll",
-                      children: Object.entries(window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.states || {}).map(([code, state]) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_select__WEBPACK_IMPORTED_MODULE_7__.SelectItem, {
-                        value: state,
-                        className: "select-modern-item",
-                        children: state
-                      }, code))
-                    })
-                  })]
+                  onChange: value => handleInputChange('buisinessState', value),
+                  country: formData.buisinessCountry
                 })]
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
                 className: "space-y-2",
@@ -596,43 +688,69 @@ const InitialConfigurationStep = ({
           className: "mt-6 space-y-6",
           children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
             className: "grid gap-2",
-            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_custom_cod_funnel_booster_geo_config__WEBPACK_IMPORTED_MODULE_8__["default"], {})
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_custom_cod_funnel_booster_geo_config__WEBPACK_IMPORTED_MODULE_8__["default"], {
+              countries: window.codFunnelConfigManager?.storeConfig?.data?.geoConfig?.allCountries || {},
+              sellOption: formData.sellOption,
+              onSellOptionChange: value => handleInputChange('sellOption', value),
+              selectedCountries: formData.sellOption === 'specific' ? formData.specificCountries : formData.sellOption === 'all_except' ? formData.excludedCountries : [],
+              onSelectedCountriesChange: countries => {
+                handleInputChange(formData.sellOption === 'specific' ? 'specificCountries' : 'excludedCountries', countries);
+              }
+            })
           })
         })]
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-        className: "sticky bottom-0 p-4 bg-background/80 backdrop-blur-sm border-t dark:border-slate-700 mt-auto",
-        children: [parentError && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_3__.Alert, {
-          variant: "destructive",
-          className: "mb-4",
-          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_11__["default"], {
-            className: "h-4 w-4"
-          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_3__.AlertDescription, {
-            children: parentError
-          })]
-        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-          className: "flex items-center justify-between gap-4",
-          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_button__WEBPACK_IMPORTED_MODULE_1__.Button, {
-            variant: "outline",
-            onClick: () => setStep(step - 1),
-            disabled: isLoading,
-            className: "button-modern",
-            children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_12__["default"], {
-              className: "mr-2 h-4 w-4"
-            }), " Previous"]
-          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_button__WEBPACK_IMPORTED_MODULE_1__.Button, {
-            onClick: handleSubmit,
-            disabled: isLoading,
-            className: "button-modern",
-            children: isLoading ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.Fragment, {
-              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_13__["default"], {
-                className: "mr-2 h-4 w-4 animate-spin"
-              }), " Saving..."]
-            }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.Fragment, {
-              children: ["Next ", /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_14__["default"], {
-                className: "ml-2 h-4 w-4"
+        className: "sticky bottom-0 mt-auto",
+        children: [parentError && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
+          className: "px-6 py-3 bg-destructive/5 dark:bg-destructive/10 border-t border-destructive/10 dark:border-destructive/20",
+          children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_3__.Alert, {
+            variant: "destructive",
+            className: "max-w-3xl mx-auto bg-transparent border-none",
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
+              className: "flex items-center gap-2",
+              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_11__["default"], {
+                className: "h-4 w-4 text-destructive"
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_3__.AlertDescription, {
+                className: "text-destructive text-sm font-medium",
+                children: parentError
               })]
             })
-          })]
+          })
+        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
+          className: "border-t border-border/50 dark:border-border/30 bg-gradient-to-b from-background/50 to-background dark:from-background/30 dark:to-background/50 backdrop-blur-lg",
+          children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
+            className: "max-w-3xl mx-auto px-6 py-4",
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
+              className: "flex items-center justify-between gap-4",
+              children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_button__WEBPACK_IMPORTED_MODULE_1__.Button, {
+                variant: "outline",
+                onClick: () => setStep(step - 1),
+                disabled: isLoading,
+                className: "relative group px-6 py-2 border-border/50 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30",
+                children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("span", {
+                  className: "flex items-center",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_12__["default"], {
+                    className: "mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1"
+                  }), "Previous"]
+                })
+              }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_button__WEBPACK_IMPORTED_MODULE_1__.Button, {
+                onClick: handleSubmit,
+                disabled: isLoading,
+                className: "relative px-6 py-2 bg-primary/90 hover:bg-primary text-primary-foreground shadow-lg shadow-primary/20 dark:shadow-primary/10 hover:shadow-primary/30 dark:hover:shadow-primary/20 transition-all duration-300 group",
+                children: isLoading ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("span", {
+                  className: "flex items-center",
+                  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_13__["default"], {
+                    className: "mr-2 h-4 w-4 animate-spin"
+                  }), "Saving..."]
+                }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("span", {
+                  className: "flex items-center",
+                  children: ["Save & Continue", /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_14__["default"], {
+                    className: "ml-2 h-4 w-4 transition-transform group-hover:translate-x-1"
+                  })]
+                })
+              })]
+            })
+          })
         })]
       })]
     })
@@ -656,9 +774,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_wordpress_element__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _components_ui_button__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @/components/ui/button */ "./src/components/ui/button.jsx");
 /* harmony import */ var _components_ui_alert__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @/components/ui/alert */ "./src/components/ui/alert.jsx");
-/* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/circle-check-big.js");
-/* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/circle-alert.js");
-/* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/loader.js");
+/* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/loader.js");
+/* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/circle-check-big.js");
+/* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/circle-alert.js");
 /* harmony import */ var lucide_react__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! lucide-react */ "./node_modules/lucide-react/dist/esm/icons/arrow-right.js");
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__);
@@ -667,6 +785,70 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+const OverlayLoader = () => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+  className: "fixed inset-0 bg-background/80 backdrop-blur-md z-50",
+  children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+    className: "absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-background/5"
+  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+    className: "relative h-full flex items-center justify-center",
+    children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+      className: "bg-background/95 dark:bg-background/80 p-8 rounded-2xl border border-border/50 dark:border-border/30\r shadow-2xl shadow-primary/5 dark:shadow-primary/10 \r backdrop-blur-sm max-w-md w-full mx-4",
+      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+        className: "flex flex-col items-center space-y-6",
+        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+          className: "relative",
+          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+            className: "absolute inset-0 animate-ping rounded-full bg-primary/20 dark:bg-primary/10"
+          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+            className: "relative bg-primary/10 dark:bg-primary/20 p-4 rounded-full",
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_4__["default"], {
+              className: "h-8 w-8 text-primary animate-spin"
+            })
+          })]
+        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+          className: "space-y-2 text-center",
+          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("h3", {
+            className: "text-xl font-semibold text-foreground",
+            children: "Initializing Your Store"
+          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("p", {
+            className: "text-muted-foreground",
+            children: "We're setting up WooCommerce and preparing your store for the best COD experience."
+          })]
+        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
+          className: "w-full space-y-2",
+          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+            className: "h-1 w-full bg-muted/30 rounded-full overflow-hidden",
+            children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
+              className: "h-full bg-primary/80 rounded-full animate-progress",
+              style: {
+                width: '90%',
+                animation: 'progress 2s ease-in-out infinite'
+              }
+            })
+          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("p", {
+            className: "text-xs text-center text-muted-foreground",
+            children: "This may take a few seconds..."
+          })]
+        })]
+      })
+    })
+  })]
+});
+
+// Add this CSS to your global styles or component
+const styles = `
+    @keyframes progress {
+        0% {
+            width: 0%;
+        }
+        50% {
+            width: 90%;
+        }
+        100% {
+            width: 95%;
+        }
+    }
+`;
 const PluginItem = ({
   plugin,
   status,
@@ -679,12 +861,12 @@ const PluginItem = ({
     className: "flex items-center space-x-4",
     children: [status.isActive ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
       className: "rounded-full bg-primary/10 dark:bg-primary/20 p-2",
-      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_4__["default"], {
+      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_5__["default"], {
         className: "text-primary h-5 w-5"
       })
     }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)("div", {
       className: "rounded-full bg-amber-500/10 dark:bg-amber-400/20 p-2",
-      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_5__["default"], {
+      children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_6__["default"], {
         className: "text-amber-500 dark:text-amber-400 h-5 w-5"
       })
     }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
@@ -703,7 +885,7 @@ const PluginItem = ({
       disabled: isLoading,
       className: "bg-secondary hover:bg-secondary/90 text-secondary-foreground",
       children: isLoading === "install" ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment, {
-        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_6__["default"], {
+        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_4__["default"], {
           className: "animate-spin mr-2 h-4 w-4"
         }), "Installing..."]
       }) : "Install"
@@ -712,13 +894,13 @@ const PluginItem = ({
       disabled: isLoading,
       className: "bg-primary/90 hover:bg-primary text-primary-foreground",
       children: isLoading === "activate" ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment, {
-        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_6__["default"], {
+        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_4__["default"], {
           className: "animate-spin mr-2 h-4 w-4"
         }), "Activating..."]
       }) : "Activate"
     }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("span", {
       className: "flex items-center px-3 py-1 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary",
-      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_4__["default"], {
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_5__["default"], {
         className: "h-4 w-4 mr-2"
       }), "Active"]
     })
@@ -734,6 +916,8 @@ const PluginsSetupStep = ({
   error,
   setError
 }) => {
+  const [shouldRefresh, setShouldRefresh] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+  const [showOverlay, setShowOverlay] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
   (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
     checkPluginStatuses();
   }, []);
@@ -817,13 +1001,21 @@ const PluginsSetupStep = ({
       });
       const data = await response.json();
       if (data.success) {
-        setPluginStatuses(prev => ({
-          ...prev,
+        const updatedStatuses = {
+          ...pluginStatuses,
           [slug]: {
-            ...prev[slug],
+            ...pluginStatuses[slug],
             isActive: true
           }
-        }));
+        };
+        setPluginStatuses(updatedStatuses);
+
+        // Check if this was the last plugin to be activated
+        const allActivated = Object.values(updatedStatuses).every(status => status.isActive);
+        if (allActivated) {
+          setShowOverlay(true);
+          setShouldRefresh(true);
+        }
       } else {
         throw new Error(data.data?.errorMessage || "Failed to activate plugin");
       }
@@ -839,6 +1031,13 @@ const PluginsSetupStep = ({
       });
     }
   };
+  (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
+    if (shouldRefresh) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 3500);
+    }
+  }, [shouldRefresh]);
   const allPluginsReady = Object.values(pluginStatuses).every(status => status.isActive);
   const anyPluginLoading = Object.keys(loadingPlugins).length > 0;
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)("div", {
@@ -846,7 +1045,7 @@ const PluginsSetupStep = ({
     children: [error && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_2__.Alert, {
       variant: "destructive",
       className: "bg-destructive/10 dark:bg-destructive/20 border-none",
-      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_5__["default"], {
+      children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_6__["default"], {
         className: "h-4 w-4 text-destructive"
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_2__.AlertDescription, {
         className: "text-destructive",
@@ -868,7 +1067,7 @@ const PluginsSetupStep = ({
         disabled: !allPluginsReady || anyPluginLoading,
         className: "button-modern",
         children: anyPluginLoading ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment, {
-          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_6__["default"], {
+          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_4__["default"], {
             className: "animate-spin mr-2 h-4 w-4"
           }), "Processing..."]
         }) : /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.Fragment, {
@@ -877,7 +1076,7 @@ const PluginsSetupStep = ({
           })]
         })
       })
-    })]
+    }), showOverlay && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_3__.jsx)(OverlayLoader, {})]
   });
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (PluginsSetupStep);
@@ -975,7 +1174,7 @@ const SetupWizard = () => {
   const [loadingPlugins, setLoadingPlugins] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)({});
   const [error, setError] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
   const [buisinessInfo, setbuisinessInfo] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)({});
-  const [storeConfig, setstoreConfig] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)({});
+  const [storeConfig, setStoreConfig] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.useState)({});
 
   // Configuration for wizard steps
   const wizardSteps = [{
@@ -1008,7 +1207,7 @@ const SetupWizard = () => {
     buisinessInfo,
     setbuisinessInfo,
     storeConfig,
-    setstoreConfig
+    setStoreConfig
   };
   const CurrentStepComponent = wizardSteps.find(s => s.id === step).component;
   const currentStep = wizardSteps.find(s => s.id === step);
@@ -1523,132 +1722,109 @@ __webpack_require__.r(__webpack_exports__);
 
 
 const CODFunnelBoosterGeoConfig = ({
-  countries,
-  selectedCountry,
-  selectedState,
-  onCountryChange,
-  onStateChange,
-  sellOption,
+  countries = {},
+  sellOption = 'all',
   onSellOptionChange,
-  selectedCountries,
+  selectedCountries = [],
   onSelectedCountriesChange,
   error
 }) => {
-  const [states, setStates] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
   const [open, setOpen] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
-  (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
-    // Update states when country changes
-    if (selectedCountry && countries[selectedCountry]) {
-      setStates(Object.entries(countries[selectedCountry].states || {}).map(([code, name]) => ({
-        code,
-        name
-      })));
-    }
-  }, [selectedCountry, countries]);
   const handleCountrySelect = countryCode => {
     const updatedCountries = selectedCountries.includes(countryCode) ? selectedCountries.filter(c => c !== countryCode) : [...selectedCountries, countryCode];
     onSelectedCountriesChange(updatedCountries);
-  };
-  const renderSelectedCountries = () => {
-    if (!countries) return null; // Add null check for countries
-
-    if (sellOption === 'all') {
-      return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_badge__WEBPACK_IMPORTED_MODULE_3__.Badge, {
-        variant: "secondary",
-        className: "mr-2",
-        children: "All Countries"
-      });
-    }
-    if (sellOption === 'specific' || sellOption === 'all_except') {
-      return selectedCountries?.map(countryCode => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_badge__WEBPACK_IMPORTED_MODULE_3__.Badge, {
-        variant: "secondary",
-        className: "mr-2",
-        children: [countries[countryCode]?.name || countryCode, /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("button", {
-          className: "ml-1",
-          onClick: () => handleCountrySelect(countryCode),
-          children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_11__["default"], {
-            className: "h-3 w-3"
-          })
-        })]
-      }, countryCode)) || null;
-    }
-    return null;
+    setOpen(false);
   };
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-    className: "space-y-6 bg-card/50 dark:bg-card/30 p-6 rounded-xl border border-border/50 dark:border-border/30",
+    className: "space-y-6 bg-card/50 dark:bg-card/30 p-6 rounded-xl border border-border/50 dark:border-border/30 backdrop-blur-sm",
     children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
       className: "space-y-4",
       children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
-        className: "text-lg font-medium text-foreground",
+        className: "text-base font-medium text-foreground",
         children: "Sales Location Configuration"
-      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_radio_group__WEBPACK_IMPORTED_MODULE_6__.RadioGroup, {
+      }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_radio_group__WEBPACK_IMPORTED_MODULE_6__.RadioGroup, {
         value: sellOption,
         onValueChange: onSellOptionChange,
-        className: "space-y-2",
-        children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-          className: "flex items-center space-x-2",
+        className: "space-y-3",
+        children: [{
+          value: 'all',
+          label: 'Sell to all countries'
+        }, {
+          value: 'specific',
+          label: 'Sell to specific countries'
+        }, {
+          value: 'all_except',
+          label: 'Sell to all countries except'
+        }].map(({
+          value,
+          label
+        }) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
+          className: "flex items-center space-x-3",
           children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_radio_group__WEBPACK_IMPORTED_MODULE_6__.RadioGroupItem, {
-            value: "all",
-            id: "all"
+            value: value,
+            id: value,
+            className: "border-input dark:border-input/30"
           }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
-            htmlFor: "all",
-            children: "Sell to all countries"
+            htmlFor: value,
+            className: "text-sm font-medium text-foreground cursor-pointer",
+            children: label
           })]
-        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-          className: "flex items-center space-x-2",
-          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_radio_group__WEBPACK_IMPORTED_MODULE_6__.RadioGroupItem, {
-            value: "specific",
-            id: "specific"
-          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
-            htmlFor: "specific",
-            children: "Sell to specific countries"
-          })]
-        }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-          className: "flex items-center space-x-2",
-          children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_radio_group__WEBPACK_IMPORTED_MODULE_6__.RadioGroupItem, {
-            value: "all_except",
-            id: "all_except"
-          }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
-            htmlFor: "all_except",
-            children: "Sell to all countries except"
-          })]
-        })]
+        }, value))
       })]
     }), (sellOption === 'specific' || sellOption === 'all_except') && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
       className: "space-y-4",
       children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_label__WEBPACK_IMPORTED_MODULE_5__.Label, {
+        className: "text-sm font-medium text-foreground",
         children: sellOption === 'specific' ? 'Select countries' : 'Exclude countries'
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)("div", {
-        className: "space-y-2",
+        className: "space-y-3",
         children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("div", {
-          className: "flex flex-wrap gap-2 mb-2",
-          children: renderSelectedCountries()
+          className: "flex flex-wrap gap-2",
+          children: selectedCountries.map(countryCode => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_badge__WEBPACK_IMPORTED_MODULE_3__.Badge, {
+            variant: "secondary",
+            className: "px-2 py-1 bg-muted/50 dark:bg-muted/20 text-foreground",
+            children: [countries[countryCode] || countryCode, /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("button", {
+              onClick: () => handleCountrySelect(countryCode),
+              className: "ml-2 hover:text-destructive transition-colors",
+              children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_11__["default"], {
+                className: "h-3 w-3"
+              })
+            })]
+          }, countryCode))
         }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_popover__WEBPACK_IMPORTED_MODULE_8__.Popover, {
-          className: "bg-slate-400",
           open: open,
           onOpenChange: setOpen,
           children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_popover__WEBPACK_IMPORTED_MODULE_8__.PopoverTrigger, {
             asChild: true,
             children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_button__WEBPACK_IMPORTED_MODULE_4__.Button, {
               variant: "outline",
-              className: "w-full justify-between",
+              className: "w-full justify-between h-10 px-3 py-2 bg-background dark:bg-background/5 border-input dark:border-input/20 text-foreground dark:text-foreground hover:bg-accent/50 dark:hover:bg-accent/10 focus:ring-2 focus:ring-primary/30 dark:focus:ring-primary/20",
               children: ["Select countries", /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_12__["default"], {
-                className: "ml-2 h-4 w-4 shrink-0 opacity-50"
+                className: "h-4 w-4 opacity-50"
               })]
             })
           }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_popover__WEBPACK_IMPORTED_MODULE_8__.PopoverContent, {
-            className: "w-600 h-300 p-0 ",
+            className: "w-[300px] p-0 bg-card dark:bg-card/95  border border-border/50 dark:border-border/30 shadow-lg backdrop-blur-sm",
+            align: "start",
             children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_command__WEBPACK_IMPORTED_MODULE_7__.Command, {
+              className: "rounded-lg",
               children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_command__WEBPACK_IMPORTED_MODULE_7__.CommandInput, {
-                placeholder: "Search country..."
+                placeholder: "Search country...",
+                className: "h-10 px-3 py-2 bg-transparent border-none focus:ring-0 text-foreground dark:text-foreground placeholder:text-muted-foreground/60"
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_command__WEBPACK_IMPORTED_MODULE_7__.CommandEmpty, {
+                className: "py-3 px-4 text-sm text-muted-foreground",
                 children: "No country found."
               }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_command__WEBPACK_IMPORTED_MODULE_7__.CommandGroup, {
+                className: "max-h-[300px] overflow-y-auto modern-scroll p-1",
                 children: Object.entries(countries).map(([code, country]) => /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsxs)(_components_ui_command__WEBPACK_IMPORTED_MODULE_7__.CommandItem, {
                   onSelect: () => handleCountrySelect(code),
+                  className: "relative flex items-center px-3 py-2.5 rounded-md text-sm text-foreground dark:text-foreground cursor-pointer select-none outline-none hover:bg-accent/40 dark:hover:bg-accent/20 data-[selected=true]:bg-accent/60 dark:data-[selected=true]:bg-accent/30 focus:bg-accent/40 dark:focus:bg-accent/20 transition-colors",
                   children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(lucide_react__WEBPACK_IMPORTED_MODULE_13__["default"], {
-                    className: (0,_lib_utils__WEBPACK_IMPORTED_MODULE_1__.cn)("mr-2 h-4 w-4", selectedCountries.includes(code) ? "opacity-100" : "opacity-0")
-                  }), country.name]
+                    className: (0,_lib_utils__WEBPACK_IMPORTED_MODULE_1__.cn)("mr-2 h-4 w-4 text-primary dark:text-primary/90", selectedCountries.includes(code) ? "opacity-100" : "opacity-0")
+                  }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)("span", {
+                    className: "flex-1 truncate",
+                    children: country
+                  })]
                 }, code))
               })]
             })
@@ -1657,6 +1833,7 @@ const CODFunnelBoosterGeoConfig = ({
       })]
     }), error && /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_2__.Alert, {
       variant: "destructive",
+      className: "mt-4",
       children: /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_10__.jsx)(_components_ui_alert__WEBPACK_IMPORTED_MODULE_2__.AlertDescription, {
         children: error
       })
@@ -1788,8 +1965,6 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-// @ts-ignore
-
 const Input = react__WEBPACK_IMPORTED_MODULE_0__.forwardRef(({
   className,
   type,
@@ -1797,7 +1972,7 @@ const Input = react__WEBPACK_IMPORTED_MODULE_0__.forwardRef(({
 }, ref) => {
   return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)("input", {
     type: type,
-    className: (0,_lib_utils__WEBPACK_IMPORTED_MODULE_1__.cn)("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm", className),
+    className: (0,_lib_utils__WEBPACK_IMPORTED_MODULE_1__.cn)("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2", "text-sm text-foreground ring-offset-background", "file:border-0 file:bg-transparent file:text-sm file:font-medium", "placeholder:text-muted-foreground/60", "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30", "disabled:cursor-not-allowed disabled:opacity-50", "dark:bg-background/5 dark:border-input/20 dark:text-foreground", "dark:placeholder:text-muted-foreground/50", "hover:border-primary/30 transition-colors", className),
     ref: ref,
     ...props
   });

@@ -22,7 +22,7 @@ const SetupWizard = () => {
   const [loadingPlugins, setLoadingPlugins] = useState({});
   const [error, setError] = useState(null);
   const [buisinessInfo, setbuisinessInfo] = useState({});
-  const [storeConfig, setstoreConfig] = useState({});
+  const [storeConfig, setStoreConfig] = useState({});
 
   // Configuration for wizard steps
   const wizardSteps = [
@@ -60,7 +60,7 @@ const SetupWizard = () => {
     buisinessInfo,
     setbuisinessInfo,
     storeConfig,
-    setstoreConfig,
+    setStoreConfig,
   };
 
   const CurrentStepComponent = wizardSteps.find((s) => s.id === step).component;
